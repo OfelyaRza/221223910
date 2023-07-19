@@ -1,3 +1,6 @@
+conda activate case-env
+
+
 # Course - 	Financial Data Analytics in Python
 # Casestudy
 """
@@ -430,6 +433,6 @@ df = json_normalize(data, 'logs')
 df_settlement = df[df['type'] == 'settlement']
 
 
-
+conda deactivate
 
 
