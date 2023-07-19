@@ -1,14 +1,7 @@
 conda activate case-env
 
-
-# Course - 	Financial Data Analytics in Python
-# Casestudy
-# Backtests
-"""
-@author: Ofelya Rzayeva 221223910
-"""
-
 import pandas as pd
+import time
 import numpy as np
 import matplotlib.pyplot as plt
 from sqlalchemy import create_engine
@@ -34,6 +27,49 @@ def get_market(instrument):
     print(f"Current market price: {market_price}")
     
     return market_price
+
+url = 'https://test.deribit.com/api/v2/'
+
+class DataHandler:
+    def __init__(self, db_name):
+        self.engine = create_engine(f'sqlite:///{db_name}')
+        self.url = "https://www.deribit.com/api/v2/public/get_tradingview_chart_data"
+        
+    def download(self, instrument_name):
+        msg = {
+                "jsonrpc" : "2.0",
+                "id" : 833,
+                "method" : "public/get_tradingview_chart_data",
+                "params" : {
+                "instrument_name" : instrument_name,
+                "end_timestamp": int(time.time() * 1000),  # In Epoch milliseconds
+                "start_timestamp": int((time.time() - 1e6) * 1000), # In Epoch milliseconds
+                "resolution" : "60"  # Minute data
+                }
+            }
+        response = requests.post(url, json=msg)
+        data = response.json()
+        ohlc = pd.DataFrame(data['result'])
+        ohlc['timestamp'] = pd.to_datetime(ohlc['ticks'], unit='ms')
+        ohlc['instrument_name'] = instrument_name
+        ohlc['resolution'] = 60
+        # Please note the if_exists='replace' ... one might if_exists='append' but need to check for duplicates!
+        ohlc.to_sql('ohlc', self.engine, if_exists='replace')
+        
+    def select(self, query):
+        return pd.read_sql(query, self.engine)
+        
+    def plot(self, query):
+        df = self.select(query)
+        df.plot()
+        plt.title(f'{query}')
+        plt.show()
+
+# Download OHLC data for the instrument
+dh = DataHandler('07_datam.db')
+dh.download('BTC-PERPETUAL')
+data = dh.select('SELECT * FROM ohlc')
+dh.plot('SELECT timestamp, close FROM ohlc ORDER BY timestamp ASC')
 
 # Calculate breakout prices
 instrument_name = "BTC-PERPETUAL"
